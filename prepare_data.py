@@ -4,6 +4,7 @@ import random
 
 # Load full iris dataset
 df = pd.read_csv("iris.csv")
+print("ok")
 
 # Split into train and validation
 X = df.drop(columns=["target"])
@@ -38,4 +39,5 @@ def create_poisoned_copy(df, poison_percent, output_filename):
 create_poisoned_copy(train_df, 0.05, "poisoned_train_5.csv")
 create_poisoned_copy(train_df, 0.10, "poisoned_train_10.csv")
 create_poisoned_copy(train_df, 0.50, "poisoned_train_50.csv")
+
 
