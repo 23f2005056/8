@@ -15,14 +15,16 @@ jobs:
   run-training:
     runs-on: ubuntu-latest
     steps:
+      # Checkout the repository using the input tag
       - uses: actions/checkout@v3
         with:
           ref: ${{ github.event.inputs.tag }}
           fetch-depth: 0   # fetch full history to ensure the tag exists
 
-
+      # Setup CML environment
       - uses: iterative/setup-cml@v2
 
+      # Extract poisoning percentage from the tag name
       - name: Extract poisoning percentage from tag
         id: extract
         run: |
@@ -30,11 +32,21 @@ jobs:
           POISON_PERCENT=$(echo "$TAG" | grep -oP '\d+')
           echo "poison=$POISON_PERCENT" >> $GITHUB_OUTPUT
 
+      # Verify that the tag exists before running training
+      - name: Check tag exists
+        run: |
+          if ! git ls-remote --tags origin | grep -q "refs/tags/${{ github.event.inputs.tag }}"; then
+            echo "Tag ${{ github.event.inputs.tag }} does not exist"
+            exit 1
+          fi
+
+      # Run the training script
       - name: Run training
         run: |
           pip install -r requirements.txt
           python3 train.py ${{ steps.extract.outputs.poison }}
 
+      # Generate and post metrics report
       - name: Report metrics
         env:
           REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -46,4 +58,3 @@ jobs:
           echo "\`\`\`" >> report.md
           echo "![Metrics Plot](./metrics_plot.png)" >> report.md
           cml comment create --publish report.md
-
