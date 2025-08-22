@@ -1,0 +1,47 @@
+name: Run tagged experiment
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to run (e.g., run-5 for 5% poisoning)'
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  run-training:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          ref: ${{ github.event.inputs.tag }}
+
+      - uses: iterative/setup-cml@v2
+
+      - name: Extract poisoning percentage from tag
+        id: extract
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
+          POISON_PERCENT=$(echo "$TAG" | grep -oP '\d+')
+          echo "poison=$POISON_PERCENT" >> $GITHUB_OUTPUT
+
+      - name: Run training
+        run: |
+          pip install -r requirements.txt
+          python3 train.py ${{ steps.extract.outputs.poison }}
+
+      - name: Report metrics
+        env:
+          REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "## Metrics Report for ${{ github.event.inputs.tag }}" > report.md
+          echo '### Metrics Table' >> report.md
+          echo "\`\`\`" >> report.md
+          cat metrics.csv >> report.md
+          echo "\`\`\`" >> report.md
+          echo "![Metrics Plot](./metrics_plot.png)" >> report.md
+          cml comment create --publish report.md
+
